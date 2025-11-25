@@ -150,7 +150,6 @@ storybook-static
 # rollup.js default build output
 dist/
 svg/
-package-lock.json
 
 # Gatsby files
 .cache/
