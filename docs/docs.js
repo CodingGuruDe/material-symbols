@@ -43,7 +43,7 @@
     div.appendChild(heading);
 
     const styleName = getId(className);
-    className = `material-symbols-${className}`;
+    className = styleName === 'outlined' ? 'el' : `el-${styleName}`;
     Object.keys(icons).forEach((icon) => {
       div.appendChild(renderIcon(icon, className, styleName));
     });
@@ -51,8 +51,9 @@
   };
 
   const renderIcon = (name, className, styleName) => {
+    const iconClass = `${className} el-${name.replace(/_/g, '-')}`;
     const icon = create('span');
-    icon.classList.add(className);
+    icon.classList.add(...iconClass.split(' '));
     icon.innerText = name;
 
     const text = create('div');
@@ -85,7 +86,7 @@
     div.classList.add('demo-search');
 
     const icon = create('span');
-    icon.classList.add('material-symbols-outlined');
+    icon.classList.add('el', 'el-search');
     icon.innerText = 'search';
     div.appendChild(icon);
 
