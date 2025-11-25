@@ -2,7 +2,7 @@ name: Auto Update
 
 on:
   schedule:
-    - cron: '23 1 * * *' # Runs at 01:23 UTC every day
+    - cron: '23 1 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -14,54 +14,60 @@ on:
       bump:
         type: choice
         description: Bump Version
-        options:
-          - patch
-          - minor
-          - major
+        options: [patch, minor, major]
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
         with:
           ssh-key: ${{ secrets.DEPLOY_KEY }}
+          persist-credentials: false
+
       - uses: git-actions/set-user@v1
-      - uses: actions/setup-node@v2
+
+      - uses: actions/setup-node@v3
         with:
-          node-version: 16
-      - run: npm ci
+          node-version: 20
+
+      - run: npm install
+
       - name: Update
         run: |
-          force="${{ github.event.inputs.force }}"
-          dry="${{ github.event.inputs.dry }}"
-          bump="${{ github.event.inputs.bump }}"
-          if [ "$bump" = "" ]; then
-            bump="patch"
-          fi
+          force="${{ github.event.inputs.force || '0' }}"
+          dry="${{ github.event.inputs.dry || '1' }}"
+          bump="${{ github.event.inputs.bump || 'patch' }}"
 
-          # Check for Updates
+          echo "force=$force dry=$dry bump=$bump"
+
           status=0
           npm run check || status=$?
-          if [ $status -eq 0 ] || [ $status -eq 4 ]; then
-            if [ "$force" != "1" ]; then
-              exit 0 # exit if there are no changes or if icons are only removed
-            fi
+
+          if [ $status -eq 0 ]; then
+            echo "No changes detected."
+            [ "$force" = "1" ] || exit 0
           fi
+
           if [ $status -ge 4 ]; then
-            bump="minor" # icons are removed from metadata API
+            bump="minor"
+            echo "Metadata removal detected — bumping to minor."
           fi
 
-          # Update
           npm run update
-          git add --all # Use 'git add --ignore-removal .' to keep deleted SVGs
-          git commit -m 'Auto Update' || [ "$force" = "1" ] || exit 1
 
-          # Bump Version
+          git add --all
+          git commit -m "Auto Update" || {
+            echo "Nothing to commit."
+            [ "$force" = "1" ] || exit 0
+          }
+
           npm run version "$bump"
 
-          # Push
           if [ "$dry" = "1" ]; then
+            echo "Dry run — not pushing."
             exit 0
           fi
+
           git push --follow-tags
